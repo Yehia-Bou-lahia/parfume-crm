@@ -14,3 +14,22 @@ class ProductType(models.Model):
         related_name="product_types",
     )
     name = models.CharField(max_length=100)
+
+class SellingCase(models.Model):
+    product_type = models.ForeignKey(
+        ProductType,
+        on_delete=models.CASCADE,
+        related_name="selling_cases",
+    )
+    volume_ml = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+    )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["product_type", "volume_ml"],
+                name="unique_product_type_volume"
+            ),
+        ]
