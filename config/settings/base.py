@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     # Third-party apps
     'rest_framework',
     # Local 
+    'modules.merchants.apps.MerchantsConfig',
     'modules.catalog.apps.CatalogConfig',
 ]
 
