@@ -31,6 +31,15 @@ class SellingCase(models.Model):
         decimal_places=2,
     )
 
+    def clean(self):
+        super().clean()
+
+        if self.product_type_id and self.product_type.merchant_configurations.exists():
+            raise ValidationError(
+                "A product type with merchant configurations "
+                "cannot have selling cases."
+            )
+
     class Meta:
         constraints = [
             models.UniqueConstraint(
@@ -91,6 +100,21 @@ class MerchantSellingCase(models.Model):
         decimal_places=2,
     )
     is_active = models.BooleanField(default=True)
+
+    def clean(self):
+        super().clean()
+
+        if self.selling_case_id and self.merchant_id:
+            product_type = self.selling_case.product_type
+
+            if MerchantProductConfiguration.objects.filter(
+                merchant=self.merchant,
+                product_type=product_type,
+            ).exists():
+                raise ValidationError(
+                    "A merchant cannot configure a selling case "
+                    "when the product type is already configured."
+                )
 
     class Meta:
         constraints = [
