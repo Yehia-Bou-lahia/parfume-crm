@@ -103,3 +103,4 @@ class SellingCaseListAPITests(TestCase):
             data[0]["volume_ml"],
             "50.00",
         )
+        self.assertNotIn("price", data[0])

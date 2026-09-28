@@ -19,5 +19,5 @@ class ProductTypeListView(generics.ListAPIView):
 
 
 class SellingCaseListView(generics.ListAPIView):
-    queryset = SellingCase.objects.select_related("product_type")
+    queryset = SellingCase.objects.all()
     serializer_class = SellingCaseSerializer
