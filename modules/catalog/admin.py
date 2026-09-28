@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from modules.catalog.models import Product, ProductType
+from modules.catalog.models import Product, ProductType, SellingCase
 
 
 @admin.register(Product)
@@ -11,3 +11,8 @@ class ProductAdmin(admin.ModelAdmin):
 @admin.register(ProductType)
 class ProductTypeAdmin(admin.ModelAdmin):
     list_display = ("id", "product", "name")
+
+
+@admin.register(SellingCase)
+class SellingCaseAdmin(admin.ModelAdmin):
+    list_display = ("id", "product_type", "volume_ml")
