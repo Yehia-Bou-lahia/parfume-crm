@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from modules.catalog.models import Product, ProductType, SellingCase
+from modules.catalog.models import Product, ProductType
 
 
 class ProductSerializer(serializers.ModelSerializer):
@@ -27,19 +27,6 @@ class ProductTypeSerializer(serializers.ModelSerializer):
             "id",
             "product",
             "name",
-        ]
-        read_only_fields = [
-            "id",
-        ]
-
-
-class SellingCaseSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = SellingCase
-        fields = [
-            "id",
-            "product_type",
-            "volume_ml",
         ]
         read_only_fields = [
             "id",
