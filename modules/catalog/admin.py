@@ -1,6 +1,11 @@
 from django.contrib import admin
 
-from modules.catalog.models import Product, ProductType, SellingCase
+from modules.catalog.models import (
+    MerchantSellingCase,
+    Product,
+    ProductType,
+    SellingCase,
+)
 
 
 @admin.register(Product)
@@ -15,4 +20,21 @@ class ProductTypeAdmin(admin.ModelAdmin):
 
 @admin.register(SellingCase)
 class SellingCaseAdmin(admin.ModelAdmin):
-    list_display = ("id", "product_type", "volume_ml")
+    list_display = (
+        "id",
+        "product_type",
+        "quality",
+        "aging",
+        "grade",
+        "sale_mode",
+    )
+
+
+@admin.register(MerchantSellingCase)
+class MerchantSellingCaseAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "merchant_product_type",
+        "selling_case",
+        "is_active",
+    )
