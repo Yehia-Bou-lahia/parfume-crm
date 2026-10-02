@@ -1,3 +1,4 @@
+
 from decimal import Decimal
 
 from django.core.exceptions import ValidationError
@@ -5,13 +6,14 @@ from django.db import models
 from django.db.models import Q
 
 from .merchant_selling_case import MerchantSellingCase
+from .grade_configuration import GradeConfiguration
 
 
 class Pricing(models.Model):
     FIXED = "FIXED"
     PER_VOLUME = "PER_VOLUME"
 
-    PRICING_TYPE_CHOICES = [
+    BEHAVIOR_CHOICES = [
         (FIXED, "Fixed"),
         (PER_VOLUME, "Per Volume"),
     ]
@@ -20,11 +22,21 @@ class Pricing(models.Model):
         MerchantSellingCase,
         on_delete=models.CASCADE,
         related_name="pricing",
+        null=True,
+        blank=True,
     )
 
-    pricing_type = models.CharField(
+    grade_configuration = models.OneToOneField(
+        GradeConfiguration,
+        on_delete=models.CASCADE,
+        related_name="pricing",
+        null=True,
+        blank=True,
+    )
+
+    behavior = models.CharField(
         max_length=20,
-        choices=PRICING_TYPE_CHOICES,
+        choices=BEHAVIOR_CHOICES,
     )
 
     amount = models.DecimalField(
@@ -44,7 +56,19 @@ class Pricing(models.Model):
     def clean(self):
         super().clean()
 
-        if self.pricing_type == self.FIXED:
+        has_merchant_selling_case = (
+            self.merchant_selling_case_id is not None
+        )
+        has_grade_configuration = (
+            self.grade_configuration_id is not None
+        )
+
+        if has_merchant_selling_case == has_grade_configuration:
+            raise ValidationError(
+                "Pricing must belong to exactly one owner."
+            )
+
+        if self.behavior == self.FIXED:
             if self.amount is None:
                 raise ValidationError(
                     {"amount": "Fixed pricing requires an amount."}
@@ -55,7 +79,7 @@ class Pricing(models.Model):
                     {"rate": "Fixed pricing cannot have a rate."}
                 )
 
-        elif self.pricing_type == self.PER_VOLUME:
+        elif self.behavior == self.PER_VOLUME:
             if self.rate is None:
                 raise ValidationError(
                     {"rate": "Per-volume pricing requires a rate."}
@@ -67,10 +91,10 @@ class Pricing(models.Model):
                 )
 
     def calculate_price(self, volume_ml=None):
-        if self.pricing_type == self.FIXED:
+        if self.behavior == self.FIXED:
             return self.amount
 
-        if self.pricing_type == self.PER_VOLUME:
+        if self.behavior == self.PER_VOLUME:
             if volume_ml is None:
                 raise ValidationError(
                     {"volume_ml": "Volume is required for per-volume pricing."}
@@ -88,5 +112,18 @@ class Pricing(models.Model):
             models.CheckConstraint(
                 condition=Q(rate__isnull=True) | Q(rate__gte=0),
                 name="pricing_rate_non_negative",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    Q(
+                        merchant_selling_case__isnull=False,
+                        grade_configuration__isnull=True,
+                    )
+                    | Q(
+                        merchant_selling_case__isnull=True,
+                        grade_configuration__isnull=False,
+                    )
+                ),
+                name="pricing_exactly_one_owner",
             ),
         ]
