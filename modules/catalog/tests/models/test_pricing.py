@@ -228,3 +228,23 @@ class PricingTests(TestCase):
 
         with self.assertRaises(ValidationError):
             pricing.full_clean()
+
+    def test_pricing_amount_cannot_be_zero(self):
+        pricing = Pricing(
+            merchant_selling_case=self.merchant_selling_case,
+            behavior=Pricing.FIXED,
+            amount=0,
+        )
+
+        with self.assertRaises(ValidationError):
+            pricing.full_clean()
+
+    def test_pricing_rate_cannot_be_zero(self):
+        pricing = Pricing(
+            merchant_selling_case=self.merchant_selling_case,
+            behavior=Pricing.PER_VOLUME,
+            rate=0,
+        )
+    
+        with self.assertRaises(ValidationError):
+            pricing.full_clean()
