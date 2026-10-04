@@ -106,11 +106,11 @@ class Pricing(models.Model):
     class Meta:
         constraints = [
             models.CheckConstraint(
-                condition=Q(amount__isnull=True) | Q(amount__gte=0),
+                condition=Q(amount__isnull=True) | Q(amount__gt=0),
                 name="pricing_amount_non_negative",
             ),
             models.CheckConstraint(
-                condition=Q(rate__isnull=True) | Q(rate__gte=0),
+                condition=Q(rate__isnull=True) | Q(rate__gt=0),
                 name="pricing_rate_non_negative",
             ),
             models.CheckConstraint(
