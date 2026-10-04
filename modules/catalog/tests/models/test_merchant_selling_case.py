@@ -42,8 +42,7 @@ class MerchantSellingCaseTests(TestCase):
 
         self.selling_case = SellingCase.objects.create(
             product_type=self.oil_type,
-            aging=SellingCase.AGED,
-            grade=1,
+            name="Aged",
         )
 
     def test_merchant_can_configure_selling_case(self):
@@ -101,7 +100,7 @@ class MerchantSellingCaseTests(TestCase):
 
         commercial_case = SellingCase.objects.create(
             product_type=commercial_type,
-            quality=SellingCase.QUALITY_LOW,
+            name="Low",
         )
 
         with self.assertRaises(ValidationError):

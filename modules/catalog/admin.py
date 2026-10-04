@@ -23,10 +23,7 @@ class SellingCaseAdmin(admin.ModelAdmin):
     list_display = (
         "id",
         "product_type",
-        "quality",
-        "aging",
-        "grade",
-        "sale_mode",
+        "name",
     )
 
 
