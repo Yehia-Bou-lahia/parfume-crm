@@ -1,6 +1,9 @@
 from rest_framework import generics, status
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+
+from modules.identity.permissions import HasActiveMerchantMembership
 
 from modules.catalog.api.serializers import (
     ConfigureGradeConfigurationSerializer,
@@ -41,32 +44,27 @@ from modules.catalog.application.exceptions import (
 from modules.catalog.application.use_cases.configure_merchant_product import (
     ConfigureMerchantProductUseCase,
 )
-
 from modules.catalog.application.use_cases.configure_grade_configuration import (
     ConfigureGradeConfigurationUseCase,
 )
-
 from modules.catalog.application.use_cases.configure_merchant_selling_case import (
     ConfigureMerchantSellingCaseUseCase,
 )
-
 from modules.catalog.application.use_cases.configure_merchant_product_type import (
     ConfigureMerchantProductTypeUseCase,
 )
-
-from modules.catalog.application.use_cases.configure_merchant_selling_case_pricing import ConfigureMerchantSellingCasePricingUseCase
+from modules.catalog.application.use_cases.configure_merchant_selling_case_pricing import (
+    ConfigureMerchantSellingCasePricingUseCase,
+)
 from modules.catalog.application.use_cases.list_product_types import (
     ListProductTypesUseCase,
 )
-
 from modules.catalog.application.use_cases.list_merchant_selling_cases import (
     ListMerchantSellingCasesUseCase,
 )
-
 from modules.catalog.application.use_cases.list_products import (
     ListProductsUseCase,
 )
-
 from modules.catalog.application.use_cases.list_selling_cases import (
     ListSellingCasesUseCase,
 )
@@ -74,36 +72,31 @@ from modules.catalog.application.use_cases.list_selling_cases import (
 from modules.catalog.infrastructure.repositories.django_merchant_selling_case_repository import (
     DjangoMerchantSellingCaseRepository,
 )
-
 from modules.catalog.infrastructure.repositories.django_merchant_product_repository import (
     DjangoMerchantProductRepository,
 )
-
 from modules.catalog.infrastructure.repositories.django_merchant_product_type_repository import (
     DjangoMerchantProductTypeRepository,
 )
-
 from modules.catalog.infrastructure.repositories.django_grade_configuration_repository import (
     DjangoGradeConfigurationRepository,
 )
-
-from modules.catalog.infrastructure.repositories.django_pricing_repository import DjangoPricingRepository
+from modules.catalog.infrastructure.repositories.django_pricing_repository import (
+    DjangoPricingRepository,
+)
 from modules.catalog.infrastructure.repositories.django_product_repository import (
     DjangoProductRepository,
 )
-
 from modules.catalog.infrastructure.repositories.django_product_type_repository import (
     DjangoProductTypeRepository,
 )
-
 from modules.catalog.infrastructure.repositories.django_selling_case_repository import (
     DjangoSellingCaseRepository,
 )
 
-from modules.catalog.models.merchant_selling_case import MerchantSellingCase
-
 
 class ProductListView(generics.ListAPIView):
+    permission_classes = [AllowAny]
     serializer_class = ProductSerializer
 
     def get_queryset(self):
@@ -113,6 +106,7 @@ class ProductListView(generics.ListAPIView):
 
 
 class ProductTypeListView(generics.ListAPIView):
+    permission_classes = [AllowAny]
     serializer_class = ProductTypeSerializer
 
     def get_queryset(self):
@@ -122,6 +116,7 @@ class ProductTypeListView(generics.ListAPIView):
 
 
 class SellingCaseListView(generics.ListAPIView):
+    permission_classes = [AllowAny]
     serializer_class = SellingCaseSerializer
 
     def get_queryset(self):
@@ -131,6 +126,10 @@ class SellingCaseListView(generics.ListAPIView):
 
 
 class ConfigureMerchantProductView(generics.CreateAPIView):
+    permission_classes = [
+        IsAuthenticated,
+        HasActiveMerchantMembership,
+    ]
     serializer_class = ConfigureMerchantProductSerializer
 
     def create(self, request, *args, **kwargs):
@@ -138,29 +137,23 @@ class ConfigureMerchantProductView(generics.CreateAPIView):
         serializer.is_valid(raise_exception=True)
 
         repository = DjangoMerchantProductRepository()
-
-        use_case = ConfigureMerchantProductUseCase(
-            repository
-        )
+        use_case = ConfigureMerchantProductUseCase(repository)
 
         try:
             merchant_product = use_case.execute(
                 merchant_id=kwargs["merchant_id"],
                 product_id=serializer.validated_data["product_id"],
             )
-
         except MerchantNotFound:
             return Response(
                 {"detail": "Merchant not found."},
                 status=status.HTTP_404_NOT_FOUND,
             )
-
         except ProductNotFound:
             return Response(
                 {"detail": "Product not found."},
                 status=status.HTTP_404_NOT_FOUND,
             )
-
         except MerchantProductAlreadyConfigured:
             return Response(
                 {
@@ -172,10 +165,7 @@ class ConfigureMerchantProductView(generics.CreateAPIView):
                 status=status.HTTP_409_CONFLICT,
             )
 
-        response_serializer = MerchantProductSerializer(
-            merchant_product
-        )
-
+        response_serializer = MerchantProductSerializer(merchant_product)
         return Response(
             response_serializer.data,
             status=status.HTTP_201_CREATED,
@@ -183,6 +173,10 @@ class ConfigureMerchantProductView(generics.CreateAPIView):
 
 
 class ConfigureMerchantProductTypeView(generics.CreateAPIView):
+    permission_classes = [
+        IsAuthenticated,
+        HasActiveMerchantMembership,
+    ]
     serializer_class = ConfigureMerchantProductTypeSerializer
 
     def create(self, request, *args, **kwargs):
@@ -190,18 +184,13 @@ class ConfigureMerchantProductTypeView(generics.CreateAPIView):
         serializer.is_valid(raise_exception=True)
 
         repository = DjangoMerchantProductTypeRepository()
-
-        use_case = ConfigureMerchantProductTypeUseCase(
-            repository
-        )
+        use_case = ConfigureMerchantProductTypeUseCase(repository)
 
         try:
             merchant_product_type = use_case.execute(
                 merchant_id=kwargs["merchant_id"],
                 merchant_product_id=kwargs["merchant_product_id"],
-                product_type_id=serializer.validated_data[
-                    "product_type_id"
-                ],
+                product_type_id=serializer.validated_data["product_type_id"],
             )
         except MerchantProductNotFound:
             return Response(
@@ -210,12 +199,7 @@ class ConfigureMerchantProductTypeView(generics.CreateAPIView):
             )
         except MerchantProductDoesNotBelongToMerchant:
             return Response(
-                {
-                    "detail": (
-                        "Merchant product does not belong "
-                        "to this merchant."
-                    )
-                },
+                {"detail": "Merchant product does not belong to this merchant."},
                 status=status.HTTP_403_FORBIDDEN,
             )
         except ProductTypeNotFound:
@@ -225,12 +209,7 @@ class ConfigureMerchantProductTypeView(generics.CreateAPIView):
             )
         except ProductTypeDoesNotBelongToProduct:
             return Response(
-                {
-                    "detail": (
-                        "Product type does not belong "
-                        "to this product."
-                    )
-                },
+                {"detail": "Product type does not belong to this product."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
         except MerchantProductTypeAlreadyConfigured:
@@ -247,7 +226,6 @@ class ConfigureMerchantProductTypeView(generics.CreateAPIView):
         response_serializer = MerchantProductTypeSerializer(
             merchant_product_type
         )
-
         return Response(
             response_serializer.data,
             status=status.HTTP_201_CREATED,
@@ -255,29 +233,26 @@ class ConfigureMerchantProductTypeView(generics.CreateAPIView):
 
 
 class ConfigureMerchantSellingCaseView(generics.CreateAPIView):
+    permission_classes = [
+        IsAuthenticated,
+        HasActiveMerchantMembership,
+    ]
     serializer_class = ConfigureMerchantSellingCaseSerializer
 
     def get(self, request, *args, **kwargs):
         repository = DjangoMerchantSellingCaseRepository()
-
-        use_case = ListMerchantSellingCasesUseCase(
-            repository
-        )
+        use_case = ListMerchantSellingCasesUseCase(repository)
 
         try:
             merchant_selling_cases = use_case.execute(
                 merchant_id=kwargs["merchant_id"],
-                merchant_product_type_id=kwargs[
-                    "merchant_product_type_id"
-                ],
+                merchant_product_type_id=kwargs["merchant_product_type_id"],
             )
-
         except MerchantProductTypeNotFound:
             return Response(
                 {"detail": "Merchant product type not found."},
                 status=status.HTTP_404_NOT_FOUND,
             )
-
         except MerchantProductTypeDoesNotBelongToMerchant:
             return Response(
                 {
@@ -293,39 +268,26 @@ class ConfigureMerchantSellingCaseView(generics.CreateAPIView):
             merchant_selling_cases,
             many=True,
         )
-
-        return Response(
-            serializer.data,
-            status=status.HTTP_200_OK,
-        )
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
         repository = DjangoMerchantSellingCaseRepository()
-
-        use_case = ConfigureMerchantSellingCaseUseCase(
-            repository
-        )
+        use_case = ConfigureMerchantSellingCaseUseCase(repository)
 
         try:
             merchant_selling_case = use_case.execute(
                 merchant_id=kwargs["merchant_id"],
-                merchant_product_type_id=kwargs[
-                    "merchant_product_type_id"
-                ],
-                selling_case_id=serializer.validated_data[
-                    "selling_case_id"
-                ],
+                merchant_product_type_id=kwargs["merchant_product_type_id"],
+                selling_case_id=serializer.validated_data["selling_case_id"],
             )
-
         except MerchantProductTypeNotFound:
             return Response(
                 {"detail": "Merchant product type not found."},
                 status=status.HTTP_404_NOT_FOUND,
             )
-
         except MerchantProductTypeDoesNotBelongToMerchant:
             return Response(
                 {
@@ -336,24 +298,16 @@ class ConfigureMerchantSellingCaseView(generics.CreateAPIView):
                 },
                 status=status.HTTP_403_FORBIDDEN,
             )
-
         except SellingCaseNotFound:
             return Response(
                 {"detail": "Selling case not found."},
                 status=status.HTTP_404_NOT_FOUND,
             )
-
         except SellingCaseDoesNotBelongToProductType:
             return Response(
-                {
-                    "detail": (
-                        "Selling case does not belong "
-                        "to this product type."
-                    )
-                },
+                {"detail": "Selling case does not belong to this product type."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-
         except MerchantSellingCaseAlreadyConfigured:
             return Response(
                 {
@@ -368,7 +322,6 @@ class ConfigureMerchantSellingCaseView(generics.CreateAPIView):
         response_serializer = MerchantSellingCaseSerializer(
             merchant_selling_case
         )
-
         return Response(
             response_serializer.data,
             status=status.HTTP_201_CREATED,
@@ -376,6 +329,11 @@ class ConfigureMerchantSellingCaseView(generics.CreateAPIView):
 
 
 class ConfigureGradeConfigurationView(APIView):
+    permission_classes = [
+        IsAuthenticated,
+        HasActiveMerchantMembership,
+    ]
+
     def post(
         self,
         request,
@@ -384,9 +342,7 @@ class ConfigureGradeConfigurationView(APIView):
         merchant_product_type_id,
         merchant_selling_case_id,
     ):
-        serializer = ConfigureGradeConfigurationSerializer(
-            data=request.data
-        )
+        serializer = ConfigureGradeConfigurationSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
         use_case = ConfigureGradeConfigurationUseCase(
@@ -399,19 +355,16 @@ class ConfigureGradeConfigurationView(APIView):
                 merchant_selling_case_id=merchant_selling_case_id,
                 grade=serializer.validated_data["grade"],
             )
-
         except MerchantSellingCaseNotFound:
             return Response(
                 {"detail": "Merchant selling case not found."},
                 status=status.HTTP_404_NOT_FOUND,
             )
-
         except MerchantSellingCaseDoesNotBelongToMerchant:
             return Response(
                 {"detail": "Merchant selling case does not belong to merchant."},
                 status=status.HTTP_404_NOT_FOUND,
             )
-
         except GradeConfigurationAlreadyConfigured:
             return Response(
                 {"detail": "Grade is already configured."},
@@ -425,6 +378,11 @@ class ConfigureGradeConfigurationView(APIView):
 
 
 class ConfigureMerchantSellingCasePricingView(APIView):
+    permission_classes = [
+        IsAuthenticated,
+        HasActiveMerchantMembership,
+    ]
+
     def post(
         self,
         request,
@@ -450,19 +408,16 @@ class ConfigureMerchantSellingCasePricingView(APIView):
                 amount=serializer.validated_data.get("amount"),
                 rate=serializer.validated_data.get("rate"),
             )
-
         except MerchantSellingCaseNotFound:
             return Response(
                 {"detail": "Merchant selling case not found."},
                 status=status.HTTP_404_NOT_FOUND,
             )
-
         except MerchantSellingCaseDoesNotBelongToMerchant:
             return Response(
                 {"detail": "Merchant selling case does not belong to merchant."},
                 status=status.HTTP_404_NOT_FOUND,
             )
-
         except PricingAlreadyConfigured:
             return Response(
                 {"detail": "Pricing is already configured."},
