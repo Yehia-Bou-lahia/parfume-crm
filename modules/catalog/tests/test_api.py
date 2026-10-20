@@ -624,6 +624,19 @@ class ConfigureMerchantSellingCaseAPITests(TestCase):
             f"{self.merchant_product_type.id}/selling-cases/"
         )
 
+        # مستخدم بعضوية نشطة في التاجر المستهدف — مطلوب لاختبارات منطق الأعمال
+        User = get_user_model()
+        self.user = User.objects.create_user(
+            username="merchant_employee_selling_case",
+            password="StrongPassword123!",
+        )
+        MerchantMembership.objects.create(
+            user=self.user,
+            merchant=self.merchant,
+            role=MerchantMembership.Role.EMPLOYEE,
+        )
+        self.client.force_authenticate(user=self.user)
+
     def test_merchant_can_configure_selling_case(self):
         response = self.client.post(
             self.url,
@@ -804,6 +817,32 @@ class ConfigureMerchantSellingCaseAPITests(TestCase):
             response.status_code,
             400,
         )
+
+    def test_unauthenticated_request_is_rejected(self):
+        """طلب بدون مصادقة يجب أن يُرفض بـ 401."""
+        unauthenticated_client = APIClient()
+        response = unauthenticated_client.post(
+            self.url,
+            {"selling_case_id": self.selling_case.id},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 401)
+
+    def test_user_without_membership_is_rejected(self):
+        """مستخدم مصادق عليه لكن دون عضوية في هذا التاجر يُرفض بـ 403."""
+        User = get_user_model()
+        outsider = User.objects.create_user(
+            username="outsider_selling_case",
+            password="StrongPassword123!",
+        )
+        outsider_client = APIClient()
+        outsider_client.force_authenticate(user=outsider)
+        response = outsider_client.post(
+            self.url,
+            {"selling_case_id": self.selling_case.id},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 403)
 
 
 class MerchantSellingCaseListAPITests(TestCase):
