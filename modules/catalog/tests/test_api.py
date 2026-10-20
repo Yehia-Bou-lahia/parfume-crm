@@ -1,5 +1,7 @@
 from django.test import TestCase
-from rest_framework.test import APIClient
+from django.contrib.auth import get_user_model
+from rest_framework.test import APIClient, APITestCase
+from modules.identity.models import MerchantMembership
 from modules.catalog.models.merchant_product_type import MerchantProductType
 from modules.catalog.models.merchant_selling_case import MerchantSellingCase
 from modules.catalog.models.grade_configuration import GradeConfiguration
@@ -133,6 +135,19 @@ class ConfigureMerchantProductAPITests(TestCase):
             f"{self.merchant.id}/products/"
         )
 
+        # مستخدم بعضوية نشطة في التاجر المستهدف — مطلوب لاختبارات منطق الأعمال
+        User = get_user_model()
+        self.user = User.objects.create_user(
+            username="merchant_employee",
+            password="StrongPassword123!",
+        )
+        MerchantMembership.objects.create(
+            user=self.user,
+            merchant=self.merchant,
+            role=MerchantMembership.Role.EMPLOYEE,
+        )
+        self.client.force_authenticate(user=self.user)
+
     def test_merchant_can_configure_product(self):
         response = self.client.post(
             self.url,
@@ -168,7 +183,12 @@ class ConfigureMerchantProductAPITests(TestCase):
             ).exists()
         )
 
-    def test_returns_404_when_merchant_does_not_exist(self):
+    def test_returns_403_when_merchant_does_not_exist(self):
+        """
+        غياب العضوية في التاجر المطلوب يُرجع 403 قبل الوصول إلى الـView.
+        HasActiveMerchantMembership لا تُفرّق بين تاجر غير موجود ومستخدم غير عضو —
+        في كلا الحالتين لا توجد عضوية نشطة، فتُرجع 403 ولا تكشف عن وجود التاجر.
+        """
         response = self.client.post(
             "/api/catalog/merchants/999/products/",
             {"product_id": self.product.id},
@@ -177,12 +197,7 @@ class ConfigureMerchantProductAPITests(TestCase):
 
         self.assertEqual(
             response.status_code,
-            404,
-        )
-
-        self.assertEqual(
-            response.json()["detail"],
-            "Merchant not found.",
+            403,
         )
 
     def test_returns_404_when_product_does_not_exist(self):
@@ -256,11 +271,37 @@ class ConfigureMerchantProductAPITests(TestCase):
             {"product_id": "abc"},
             format="json",
         )
-    
+
         self.assertEqual(
             response.status_code,
             400,
         )
+
+    def test_unauthenticated_request_is_rejected(self):
+        """طلب بدون مصادقة يجب أن يُرفض بـ 401."""
+        unauthenticated_client = APIClient()
+        response = unauthenticated_client.post(
+            self.url,
+            {"product_id": self.product.id},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 401)
+
+    def test_user_without_membership_is_rejected(self):
+        """مستخدم مصادق عليه لكن دون عضوية في هذا التاجر يُرفض بـ 403."""
+        User = get_user_model()
+        outsider = User.objects.create_user(
+            username="outsider",
+            password="StrongPassword123!",
+        )
+        outsider_client = APIClient()
+        outsider_client.force_authenticate(user=outsider)
+        response = outsider_client.post(
+            self.url,
+            {"product_id": self.product.id},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 403)
 
 
 class ConfigureMerchantProductTypeAPITests(TestCase):
