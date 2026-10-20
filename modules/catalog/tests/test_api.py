@@ -1245,6 +1245,19 @@ class ConfigureMerchantSellingCasePricingAPITests(TestCase):
             "pricing/"
         )
 
+        # مستخدم بعضوية نشطة في التاجر المستهدف — مطلوب لاختبارات منطق الأعمال
+        User = get_user_model()
+        self.user = User.objects.create_user(
+            username="merchant_employee_pricing",
+            password="StrongPassword123!",
+        )
+        MerchantMembership.objects.create(
+            user=self.user,
+            merchant=self.merchant,
+            role=MerchantMembership.Role.EMPLOYEE,
+        )
+        self.client.force_authenticate(user=self.user)
+
     def test_can_configure_fixed_pricing(self):
         response = self.client.post(
             self.url,
@@ -1422,7 +1435,8 @@ class ConfigureMerchantSellingCasePricingAPITests(TestCase):
             format="json",
         )
 
-        self.assertEqual(response.status_code, 404)
+        # الطلب يستهدف تاجرًا لا يملك المستخدم عضوية فيه؛ يُرفض بـ 403 قبل الوصول إلى منطق المورد
+        self.assertEqual(response.status_code, 403)
 
     def test_cannot_configure_pricing_twice(self):
         Pricing.objects.create(
@@ -1448,3 +1462,16 @@ class ConfigureMerchantSellingCasePricingAPITests(TestCase):
             ).count(),
             1,
         )
+
+    def test_unauthenticated_request_is_rejected(self):
+        """طلب بدون مصادقة يجب أن يُرفض بـ 401."""
+        unauthenticated_client = APIClient()
+        response = unauthenticated_client.post(
+            self.url,
+            {
+                "behavior": Pricing.FIXED,
+                "amount": "2500.00",
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 401)
